@@ -9,10 +9,12 @@ import bson
 
 class ModelFile:
     def __init__(self, filename):
+        self.valid = False
         with open(filename,'rb') as f:
             data = bson.decode(f.read())
             if 'version' in data:
-                version = data['version']
-                if version == 1:
+                self.version = data['version']
+                if self.version == 1:
                     loadModel_1(data)    
-    def
+    def loadModel_1(data):
+        
