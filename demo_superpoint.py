@@ -588,11 +588,11 @@ if __name__ == '__main__':
       help='Images to skip if input is movie or directory (default: 1).')
   parser.add_argument('--show_extra', action='store_true',
       help='Show extra debug outputs (default: False).')
-  parser.add_argument('--H', type=int, default=120,
+  parser.add_argument('--H', type=int, default=480,
       help='Input image height (default: 120).')
-  parser.add_argument('--W', type=int, default=160,
+  parser.add_argument('--W', type=int, default=640,
       help='Input image width (default:160).')
-  parser.add_argument('--display_scale', type=int, default=2,
+  parser.add_argument('--display_scale', type=int, default=1,
       help='Factor to scale output visualization (default: 2).')
   parser.add_argument('--min_length', type=int, default=2,
       help='Minimum length of point tracks (default: 2).')
@@ -724,9 +724,7 @@ if __name__ == '__main__':
     end = time.time()
     net_t = (1./ float(end1 - start))
     total_t = (1./ float(end - start))
-    if opt.show_extra:
-      print('Processed image %d (net+post_process: %.2f FPS, total: %.2f FPS).'\
-            % (vs.i, net_t, total_t))
+    print('Processed image %d (net+post_process: %.2f FPS, total: %.2f FPS).' % (vs.i, net_t, total_t))
 
   # Close any remaining windows.
   cv2.destroyAllWindows()
