@@ -27,7 +27,7 @@ class ModelFile:
         imageData = imageObj['data'].encode('ascii')
         decodeData = base64.decodebytes(imageData)
         self.image = np.frombuffer(decodeData, dtype=np.uint8)
-        self.image = np.reshape(self.image, (cols, rows, elemSize))
+        self.image = np.reshape(self.image, (rows, cols,  elemSize))
         self.leds = data['leds']
         self.valid = True
             

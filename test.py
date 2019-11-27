@@ -13,22 +13,10 @@ import videostreamer
 import superpointfrontend
 import detector
 
-# Jet colormap for visualization.
-myjet = np.array([[0.        , 0.        , 0.5       ],
-                  [0.        , 0.        , 0.99910873],
-                  [0.        , 0.37843137, 1.        ],
-                  [0.        , 0.83333333, 1.        ],
-                  [0.30044276, 1.        , 0.66729918],
-                  [0.66729918, 1.        , 0.30044276],
-                  [1.        , 0.90123457, 0.        ],
-                  [1.        , 0.48002905, 0.        ],
-                  [0.99910873, 0.07334786, 0.        ],
-                  [0.5       , 0.        , 0.        ]])
-
 def convertToKeyPonts(pts):
   keypoints = list()
   for pt in pts.T:
-    keypoints.append(cv2.KeyPoint(pt[0], pt[1], pt[2]*10.0))
+    keypoints.append(cv2.KeyPoint(pt[0], pt[1], pt[2]*255.0))
   return keypoints
 
 if __name__ == '__main__':
@@ -56,9 +44,33 @@ if __name__ == '__main__':
       help='Use cuda GPU to speed up network processing speed (default: False)')
   parser.add_argument('--show_keypoints', type=int, default=0,
       help='0 - dont show keypoints, 1 - show matched keypoints, 2 - show all keypoints (default: not show)')
+  parser.add_argument('--matcher_multiplier', type=float, default=0.8,
+      help='Filter matches using the Lowes ratio test (default: 0.8).')
+  parser.add_argument('--norm_type', type=int, default=1,
+      help='0 - L1, 1 - L2, 2 - L2SQR, 3 - HAMMING, 4 - HAMMING (default: 1)')
+  parser.add_argument('--method', type=int, default=0,
+      help='0 - RANSAK, 1 - LMEDS, 2 - RHO (default: 0)')
+  parser.add_argument('--repr_threshold', type=int, default=3,
+      help='Maximum allowed reprojection error to treat a point pair as an inlier (used in the RANSAC and RHO methods only) (default: 3)')
+  parser.add_argument('--max_iter', type=int, default=2000,
+      help='Maximum number of RANSAC iterations (default: 2000)')
+  parser.add_argument('--confidence', type=float, default=0.995,
+      help='homography confidence level (default: 0.995).')
+  
   opt = parser.parse_args()
   print(opt)
-
+  
+  norm_type = cv2.NORM_L1
+  if opt.norm_type == 0 : norm_type = cv2.NORM_L1
+  elif opt.norm_type == 1 : norm_type = cv2.NORM_L2
+  elif opt.norm_type == 2 : norm_type = cv2.NORM_L2SQR
+  elif opt.norm_type == 3 : norm_type = cv2.NORM_HAMMING
+  else : norm_type = cv2.NORM_HAMMING2
+  
+  method = cv2.RANSAC
+  if opt.method == 0 : method = cv2.RANSAC
+  elif opt.method == 1 : method = cv2.LMEDS
+  else : method = cv2.RHO
   # This class helps load input images from different sources.
   vs = videostreamer.VideoStreamer("camera", opt.camid, opt.H, opt.W, 1, '')
 
@@ -71,6 +83,8 @@ if __name__ == '__main__':
                           cuda=opt.cuda)
   print('==> Successfully loaded pre-trained network.')
 
+  objDetector = detector.Detector(opt.matcher_multiplier, norm_type, method, opt.repr_threshold, opt.max_iter, opt.confidence)
+
   win = 'SuperPoint Tracker'
   objwin = 'Object'
   cv2.namedWindow(win)
@@ -81,8 +95,9 @@ if __name__ == '__main__':
   obj = model.ModelFile(opt.object_path)
   greyObj = cv2.cvtColor(obj.image, cv2.COLOR_BGR2GRAY)
   
-  pts, descObj, heatmap = fe.run(greyObj.astype('float32') / 255.)
+  pts, desc, heatmap = fe.run(greyObj.astype('float32') / 255.)
   objKeyPoints = convertToKeyPonts(pts)
+  objDesc = np.rot90(desc)
   if opt.show_keypoints != 0:
     objImg = cv2.drawKeypoints(greyObj, objKeyPoints, outImage=np.array([]), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     cv2.imshow(objwin, objImg)
@@ -96,20 +111,21 @@ if __name__ == '__main__':
 
     # Get a new image.
     img, status = vs.next_frame()
+    
     if status is False:
       break
 
     # Get points and descriptors.
     start1 = time.time()
     pts, desc, heatmap = fe.run(img)
-    end1 = time.time()
     
     imgKeyPoints = convertToKeyPonts(pts)
+    imgDesc = np.rot90(desc)
 
-    #TODO
-
-    out = detector.detect((np.dstack((img, img, img)) * 255.).astype('uint8'), 
-                   objKeyPoints, imgKeyPoints, descObj, desc, obj, opt.show_keypoints)
+    out = objDetector.detect((np.dstack((img, img, img)) * 255.).astype('uint8'), 
+                   objKeyPoints, imgKeyPoints, objDesc, imgDesc, obj, opt.show_keypoints)
+    
+    end1 = time.time()
     cv2.imshow(win, out)
     
     key = cv2.waitKey(opt.waitkey) & 0xFF
