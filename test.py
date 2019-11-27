@@ -11,6 +11,7 @@ import time
 import numpy as np
 import videostreamer
 import superpointfrontend
+import detector
 
 # Jet colormap for visualization.
 myjet = np.array([[0.        , 0.        , 0.5       ],
@@ -80,7 +81,7 @@ if __name__ == '__main__':
   obj = model.ModelFile(opt.object_path)
   greyObj = cv2.cvtColor(obj.image, cv2.COLOR_BGR2GRAY)
   
-  pts, desc, heatmap = fe.run(greyObj.astype('float32') / 255.)
+  pts, descObj, heatmap = fe.run(greyObj.astype('float32') / 255.)
   objKeyPoints = convertToKeyPonts(pts)
   if opt.show_keypoints != 0:
     objImg = cv2.drawKeypoints(greyObj, objKeyPoints, outImage=np.array([]), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
@@ -106,12 +107,10 @@ if __name__ == '__main__':
     imgKeyPoints = convertToKeyPonts(pts)
 
     #TODO
-    if opt.show_keypoints == 1:
-      out1 = (np.dstack((img, img, img)) * 255.).astype('uint8')
-      out = cv2.drawKeypoints(out1, imgKeyPoints, outImage=np.array([]), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-      cv2.imshow(win, out)
-    else:
-      cv2.imshow(win, img)  
+
+    out = detector.detect((np.dstack((img, img, img)) * 255.).astype('uint8'), 
+                   objKeyPoints, imgKeyPoints, descObj, desc, obj, opt.show_keypoints)
+    cv2.imshow(win, out)
     
     key = cv2.waitKey(opt.waitkey) & 0xFF
     if key == ord('q'):
