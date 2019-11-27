@@ -24,6 +24,12 @@ myjet = np.array([[0.        , 0.        , 0.5       ],
                   [0.99910873, 0.07334786, 0.        ],
                   [0.5       , 0.        , 0.        ]])
 
+def convertToKeyPonts(pts):
+  keypoints = list()
+  for pt in pts.T:
+    keypoints.append(cv2.KeyPoint(pt[0], pt[1], pt[2]*10.0))
+  return keypoints
+
 if __name__ == '__main__':
   # Parse command line arguments.
   parser = argparse.ArgumentParser(description='PyTorch SuperPoint Demo.')
@@ -74,9 +80,14 @@ if __name__ == '__main__':
   obj = model.ModelFile(opt.object_path)
   greyObj = cv2.cvtColor(obj.image, cv2.COLOR_BGR2GRAY)
   
-  fe.run(greyObj.astype('float32') / 255.)
+  pts, desc, heatmap = fe.run(greyObj.astype('float32') / 255.)
+  objKeyPoints = convertToKeyPonts(pts)
+  if opt.show_keypoints != 0:
+    objImg = cv2.drawKeypoints(greyObj, objKeyPoints, outImage=np.array([]), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    cv2.imshow(objwin, objImg)
+  else:
+    cv2.imshow(objwin, greyObj)  
   
-  cv2.imshow(objwin, greyObj)
   
   while True:
 
@@ -92,10 +103,16 @@ if __name__ == '__main__':
     pts, desc, heatmap = fe.run(img)
     end1 = time.time()
     
+    imgKeyPoints = convertToKeyPonts(pts)
 
     #TODO
-
-    cv2.imshow(win, img)
+    if opt.show_keypoints == 1:
+      out1 = (np.dstack((img, img, img)) * 255.).astype('uint8')
+      out = cv2.drawKeypoints(out1, imgKeyPoints, outImage=np.array([]), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+      cv2.imshow(win, out)
+    else:
+      cv2.imshow(win, img)  
+    
     key = cv2.waitKey(opt.waitkey) & 0xFF
     if key == ord('q'):
       print('Quitting, \'q\' pressed.')
