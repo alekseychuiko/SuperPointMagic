@@ -27,7 +27,8 @@ class VideoStreamer(object):
     if basedir == "camera/" or basedir == "camera":
       print('==> Processing Webcam Input.')
       self.cap = cv2.VideoCapture(camid)
-      self.listing = range(0, self.maxlen)
+      self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+      self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
       self.camera = True
     else:
       # Try to open as a video.
@@ -85,8 +86,8 @@ class VideoStreamer(object):
         return (None, False)
       if self.video_file:
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.listing[self.i])
-      input_image = cv2.resize(input_image, (self.sizer[1], self.sizer[0]),
-                               interpolation=cv2.INTER_AREA)
+        input_image = cv2.resize(input_image, (self.sizer[1], self.sizer[0]),
+                                 interpolation=cv2.INTER_AREA)
       input_image = cv2.cvtColor(input_image, cv2.COLOR_RGB2GRAY)
       input_image = input_image.astype('float')/255.0
     else:
