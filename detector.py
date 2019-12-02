@@ -1,14 +1,15 @@
 import cv2
 import numpy as np
+import matcher
 
 class Detector:
-    def __init__(self, matchMultiplier, normType, method, reprThreshold, maxIter, confidence):
+    def __init__(self, matchMultiplier, nn_thresh, method, reprThreshold, maxIter, confidence):
         self.matchMultiplier = matchMultiplier
         self.method = method
         self.reprThreshold = reprThreshold
         self.maxIter = maxIter
         self.confidence = confidence
-        self.matcher = cv2.BFMatcher(normType)
+        self.nn_thresh = nn_thresh
         
     def rectPerspectiveTransform(self, x, y, width, height, H):
         corners = np.empty((4,1,2), dtype=np.float32)
@@ -38,26 +39,20 @@ class Detector:
     
     def detect(self, img, objpoints, imagepoints, objdesc, imgdesc, deviceObject, showKeypoints):
         
-        matches	= self.matcher.knnMatch(imgdesc, objdesc, 2)
-        
-        good_matches = []
-        for m,n in matches:
-            if m.distance < self.matchMultiplier * n.distance:
-                good_matches.append(m)
-                
-        if (len(good_matches) >= 4 ):
-            obj = np.empty((len(good_matches),2), dtype=np.float32)
-            scene = np.empty((len(good_matches),2), dtype=np.float32)
-            sceneSize = np.empty((len(good_matches),1), dtype=np.float32)
-            sceneOri = np.empty((len(good_matches),1), dtype=np.float32)
-            for i in range(len(good_matches)):
+        good_matches = matcher.nn_match_two_way(imgdesc, objdesc, self.nn_thresh)
+        if (len(good_matches[0]) >= 4 ):
+            obj = np.empty((len(good_matches[0]),2), dtype=np.float32)
+            scene = np.empty((len(good_matches[0]),2), dtype=np.float32)
+            sceneSize = np.empty((len(good_matches[0]),1), dtype=np.float32)
+            sceneOri = np.empty((len(good_matches[0]),1), dtype=np.float32)
+            for i in range(len(good_matches[0])):
                 #-- Get the keypoints from the good matches
-                obj[i,0] = objpoints[good_matches[i].trainIdx].pt[0]
-                obj[i,1] = objpoints[good_matches[i].trainIdx].pt[1]
-                scene[i,0] = imagepoints[good_matches[i].queryIdx].pt[0]
-                scene[i,1] = imagepoints[good_matches[i].queryIdx].pt[1]
-                sceneSize[i] = imagepoints[good_matches[i].queryIdx].size
-                sceneOri[i] = imagepoints[good_matches[i].queryIdx].angle
+                obj[i,0] = objpoints[int(good_matches[1,i])].pt[0]
+                obj[i,1] = objpoints[int(good_matches[1,i])].pt[1]
+                scene[i,0] = imagepoints[int(good_matches[0,i])].pt[0]
+                scene[i,1] = imagepoints[int(good_matches[0,i])].pt[1]
+                sceneSize[i] = imagepoints[int(good_matches[0,i])].size
+                sceneOri[i] = imagepoints[int(good_matches[0,i])].angle
             H, _ =  cv2.findHomography(obj, scene, self.method, self.reprThreshold, maxIters = self.maxIter, confidence = self.confidence)
             if not H is None:
                 deviceCorners = self.rectPerspectiveTransform(0, 0, deviceObject.image.shape[1], deviceObject.image.shape[0], H)

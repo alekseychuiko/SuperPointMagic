@@ -44,10 +44,8 @@ if __name__ == '__main__':
       help='Use cuda GPU to speed up network processing speed (default: False)')
   parser.add_argument('--show_keypoints', type=int, default=0,
       help='0 - dont show keypoints, 1 - show matched keypoints, 2 - show all keypoints (default: not show)')
-  parser.add_argument('--matcher_multiplier', type=float, default=0.8,
-      help='Filter matches using the Lowes ratio test (default: 0.8).')
-  parser.add_argument('--norm_type', type=int, default=1,
-      help='0 - L1, 1 - L2, 2 - L2SQR, 3 - HAMMING, 4 - HAMMING (default: 1)')
+  parser.add_argument('--matcher_multiplier', type=float, default=2.0,
+      help='Filter matches using the Lowes ratio test (default: 0.4).')
   parser.add_argument('--method', type=int, default=0,
       help='0 - RANSAK, 1 - LMEDS, 2 - RHO (default: 0)')
   parser.add_argument('--repr_threshold', type=int, default=3,
@@ -59,13 +57,6 @@ if __name__ == '__main__':
   
   opt = parser.parse_args()
   print(opt)
-  
-  norm_type = cv2.NORM_L1
-  if opt.norm_type == 0 : norm_type = cv2.NORM_L1
-  elif opt.norm_type == 1 : norm_type = cv2.NORM_L2
-  elif opt.norm_type == 2 : norm_type = cv2.NORM_L2SQR
-  elif opt.norm_type == 3 : norm_type = cv2.NORM_HAMMING
-  else : norm_type = cv2.NORM_HAMMING2
   
   method = cv2.RANSAC
   if opt.method == 0 : method = cv2.RANSAC
@@ -83,7 +74,7 @@ if __name__ == '__main__':
                           cuda=opt.cuda)
   print('==> Successfully loaded pre-trained network.')
 
-  objDetector = detector.Detector(opt.matcher_multiplier, norm_type, method, opt.repr_threshold, opt.max_iter, opt.confidence)
+  objDetector = detector.Detector(opt.matcher_multiplier, opt.nn_thresh, method, opt.repr_threshold, opt.max_iter, opt.confidence)
 
   win = 'SuperPoint Tracker'
   objwin = 'Object'
@@ -95,9 +86,8 @@ if __name__ == '__main__':
   obj = model.ModelFile(opt.object_path)
   greyObj = cv2.cvtColor(obj.image, cv2.COLOR_BGR2GRAY)
   
-  pts, desc, heatmap = fe.run(greyObj.astype('float32') / 255.)
+  pts, objDesc, heatmap = fe.run(greyObj.astype('float32') / 255.)
   objKeyPoints = convertToKeyPonts(pts)
-  objDesc = np.rot90(desc)
   if opt.show_keypoints != 0:
     objImg = cv2.drawKeypoints(greyObj, objKeyPoints, outImage=np.array([]), flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     cv2.imshow(objwin, objImg)
@@ -117,10 +107,9 @@ if __name__ == '__main__':
 
     # Get points and descriptors.
     start1 = time.time()
-    pts, desc, heatmap = fe.run(img)
+    pts, imgDesc, heatmap = fe.run(img)
     
     imgKeyPoints = convertToKeyPonts(pts)
-    imgDesc = np.rot90(desc)
 
     out = objDetector.detect((np.dstack((img, img, img)) * 255.).astype('uint8'), 
                    objKeyPoints, imgKeyPoints, objDesc, imgDesc, obj, opt.show_keypoints)
